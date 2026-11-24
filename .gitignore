@@ -1,0 +1,13 @@
+@"
+# Archivos generados por .NET
+**/bin/
+**/obj/
+
+# Archivos de Visual Studio
+.vs/
+*.user
+*.suo
+
+# Archivos temporales
+*.log
+"@ | Set-Content .gitignore
