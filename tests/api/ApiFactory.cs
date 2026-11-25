@@ -1,11 +1,11 @@
-
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using ClinicaSecurityApi.Data;
+using ClinicaSecurityApi.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ClinicaSecurityApi.Tests;
 
@@ -13,50 +13,42 @@ public class ApiFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        var testKeyBytes =
-            System.Text.Encoding.UTF8.GetBytes(
-                "01234567890123456789012345678901");
-
         var testSettings = new Dictionary<string, string?>
         {
-            ["Jwt:Key"] = Convert.ToBase64String(testKeyBytes),
-
+            ["Jwt:Key"] = Convert.ToBase64String(
+                System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)),
             ["Jwt:Issuer"] = "ClinicaSecurityApi",
             ["Jwt:Audience"] = "ClinicaSecurityApiClients",
             ["Jwt:ExpirationMinutes"] = "30",
-
+            ["Logging:EventLog:LogLevel:Default"] = "None",
             ["DemoUsers:Clinico:Password"] = "ClinicoTest2026!",
             ["DemoUsers:Administrador:Password"] = "AdminTest2026!"
         };
 
-        builder.ConfigureAppConfiguration((context, configuration) =>
+        builder.ConfigureAppConfiguration((_, configuration) =>
         {
             configuration.Sources.Clear();
             configuration.AddInMemoryCollection(testSettings);
         });
 
-        // Sobrescribir la clave de validación JWT
-        // exclusivamente dentro del entorno de pruebas.
         builder.ConfigureTestServices(services =>
         {
-            services.PostConfigure<JwtBearerOptions>(
-                JwtBearerDefaults.AuthenticationScheme,
-                options =>
-                {
-                    options.TokenValidationParameters
-                        .ValidateIssuerSigningKey = true;
-
-                    options.TokenValidationParameters.IssuerSigningKey =
-                        new SymmetricSecurityKey(testKeyBytes);
-
-                    options.TokenValidationParameters.ValidateIssuer = true;
-                    options.TokenValidationParameters.ValidIssuer =
-                        "ClinicaSecurityApi";
-
-                    options.TokenValidationParameters.ValidateAudience = true;
-                    options.TokenValidationParameters.ValidAudience =
-                        "ClinicaSecurityApiClients";
-                });
+            services.RemoveAll<IPacienteStore>();
+            services.AddSingleton<IPacienteStore>(new PacientesDePrueba());
         });
+    }
+
+    private sealed class PacientesDePrueba : IPacienteStore
+    {
+        public Task<Paciente?> BuscarPorIdAsync(int id, CancellationToken cancellationToken)
+        {
+            Paciente? paciente = id switch
+            {
+                1001 => new() { Id = id, Nombre = "Paciente Demo Uno", Edad = 35, MotivoConsulta = "Consulta general ficticia" },
+                1002 => new() { Id = id, Nombre = "Paciente Demo Dos", Edad = 42, MotivoConsulta = "Revisión médica ficticia" },
+                _ => null
+            };
+            return Task.FromResult(paciente);
+        }
     }
 }

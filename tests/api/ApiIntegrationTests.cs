@@ -1,4 +1,4 @@
-
+﻿
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -12,7 +12,10 @@ public class ApiIntegrationTests : IClassFixture<ApiFactory>
 
     public ApiIntegrationTests(ApiFactory factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
     }
 
     private async Task<string> ObtenerTokenAsync(
@@ -259,6 +262,13 @@ public class ApiIntegrationTests : IClassFixture<ApiFactory>
 
         Assert.True(
             Guid.TryParse(valores!.First(), out _));
+    }
+
+    [Fact]
+    public async Task Paciente_ConTokenInvalido_DebeResponder401()
+    {
+        using var response = await ConsultarConTokenAsync("/api/pacientes/1001", "token-invalido");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     private sealed class LoginTokenResponse
