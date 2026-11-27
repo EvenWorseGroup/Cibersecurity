@@ -20,8 +20,9 @@ public class AuthService
         _configuration = configuration;
     }
 
-    public LoginResponse? IniciarSesion(LoginRequest request)
+    public LoginResponse? IniciarSesion(LoginRequest request, out string nombreUsuario)
     {
+        nombreUsuario = string.Empty;
         // Buscar usuario.
         var usuario = _usuarioStore.BuscarPorNombreUsuario(
             request.NombreUsuario);
@@ -106,6 +107,7 @@ public class AuthService
         var tokenString =
             new JwtSecurityTokenHandler().WriteToken(token);
 
+        nombreUsuario = usuario.NombreUsuario;
         return new LoginResponse
         {
             Token = tokenString,

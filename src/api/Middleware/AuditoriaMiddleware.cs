@@ -58,17 +58,23 @@ public class AuditoriaMiddleware
 
             codigoHttp = context.Response.StatusCode;
         }
-        catch
+        catch (Exception error) when (!context.Response.HasStarted &&
+                                      !context.RequestAborted.IsCancellationRequested)
         {
-            codigoHttp = 500;
-            throw;
+            _logger.LogError(
+                "Fallo HTTP: Tipo={Tipo}, IdCorrelacion={IdCorrelacion}",
+                error.GetType().Name, correlationId);
+            context.Response.Clear();
+            context.Response.Headers["X-Correlation-ID"] = correlationId;
+            context.Response.StatusCode = codigoHttp;
+            await context.Response.WriteAsJsonAsync(new { mensaje = "Error interno del servidor." });
         }
         finally
         {
             // El login exitoso se registra desde AuthController,
             // donde ya conocemos el usuario autenticado.
             var esLoginExitoso =
-                context.Request.Path.Equals(
+                ruta.Equals(
                     "/auth/login",
                     StringComparison.OrdinalIgnoreCase)
                 && context.Request.Method == "POST"
@@ -90,17 +96,6 @@ public class AuditoriaMiddleware
                 };
 
                 auditoriaStore.Agregar(registro);
-
-                _logger.LogInformation(
-                    "Auditoria HTTP: Usuario={Usuario}, Accion={Accion}, " +
-                    "Ruta={Ruta}, CodigoHttp={CodigoHttp}, " +
-                    "Resultado={Resultado}, IdCorrelacion={IdCorrelacion}",
-                    usuario,
-                    accion,
-                    ruta,
-                    codigoHttp,
-                    resultado,
-                    correlationId);
             }
         }
     }

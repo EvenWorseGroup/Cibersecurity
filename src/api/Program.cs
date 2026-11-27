@@ -40,6 +40,8 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.IncludeErrorDetails = false;
+
         var jwtKey = builder.Configuration["Jwt:Key"]
             ?? throw new InvalidOperationException(
                 "No se configurÃ³ Jwt:Key.");
@@ -49,6 +51,15 @@ builder.Services
         var jwtAudience = builder.Configuration["Jwt:Audience"]
             ?? throw new InvalidOperationException(
                 "No se configurÃ³ Jwt:Audience.");
+        if (string.IsNullOrWhiteSpace(jwtIssuer) || string.IsNullOrWhiteSpace(jwtAudience))
+        {
+            throw new InvalidOperationException("El emisor y la audiencia JWT son obligatorios.");
+        }
+        if (!int.TryParse(builder.Configuration["Jwt:ExpirationMinutes"], out var expirationMinutes)
+            || expirationMinutes <= 0)
+        {
+            throw new InvalidOperationException("La duración JWT debe ser un entero positivo.");
+        }
         byte[] keyBytes;
         try
         {
@@ -71,6 +82,7 @@ builder.Services
             {
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = signingKey,
+                ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
 
                 ValidateIssuer = true,
                 ValidIssuer = jwtIssuer,
@@ -101,6 +113,9 @@ builder.Services.AddAuthorization();
 // ==========================================
 
 var app = builder.Build();
+
+// Validar las credenciales externas antes de aceptar solicitudes.
+_ = app.Services.GetRequiredService<UsuarioStore>();
 
 if (app.Environment.IsDevelopment())
 {

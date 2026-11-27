@@ -26,7 +26,7 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public IActionResult Login([FromBody] LoginRequest request)
     {
-        var resultado = _authService.IniciarSesion(request);
+        var resultado = _authService.IniciarSesion(request, out var nombreUsuario);
 
         if (resultado is null)
         {
@@ -43,7 +43,7 @@ public class AuthController : ControllerBase
         _auditoriaStore.Agregar(new RegistroAuditoria
         {
             FechaUtc = DateTime.UtcNow,
-            Usuario = request.NombreUsuario,
+            Usuario = nombreUsuario,
             Accion = "POST /auth/login",
             Ruta = "/auth/login",
             CodigoHttp = 200,
